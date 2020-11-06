@@ -12,4 +12,10 @@ public class Product {
     private String name;
     private String price;
     private String count;
+
+    public Product(String name, String price, String count) {
+        this.name = name;
+        this.price = price;
+        this.count = count;
+    }
 }

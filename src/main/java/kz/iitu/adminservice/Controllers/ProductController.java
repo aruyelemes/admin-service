@@ -1,5 +1,7 @@
 package kz.iitu.adminservice.Controllers;
 
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixCommand;
+import com.netflix.hystrix.contrib.javanica.annotation.HystrixProperty;
 import kz.iitu.adminservice.Models.Product;
 import kz.iitu.adminservice.Models.User;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,14 +33,25 @@ public class ProductController {
 
 
     @GetMapping("/{id}")
+    @HystrixCommand(fallbackMethod = "getFallBackProduct",
+            threadPoolKey = "productInfoPool",
+            threadPoolProperties = {
+                    @HystrixProperty(name = "coreSize", value = "20")
+            }
+    )
     public Product getProductById(@PathVariable Long id) {
-        Product product = restTemplate.getForObject("http://product-service/api/v1/products/"+id, Product.class);
+        Product product = restTemplate.getForObject("http://product-service/api/v1/products/" + id, Product.class);
 
         return product;
     }
 
+    public Product getFallBackProduct(@PathVariable Long id) {
+        return new Product("No products", "", "");
+    }
+
+
     @PostMapping("/createProduct")
-    public String createProduct(@ModelAttribute @Valid @RequestBody Product product){
+    public String createProduct(@ModelAttribute @Valid @RequestBody Product product) {
         String pName = product.getName();
         String pPrice = product.getPrice();
         String pCount = product.getCount();
@@ -46,27 +59,27 @@ public class ProductController {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        MultiValueMap<String, String > map= new LinkedMultiValueMap<>();
-        map.add("name",pName);
+        MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
+        map.add("name", pName);
         map.add("price", pPrice);
         map.add("count", pCount);
 
         HttpEntity<MultiValueMap<String, String>> request = new HttpEntity<>(map, headers);
 
         ResponseEntity<String> response = restTemplate.postForEntity(
-                "http://product-service/api/v1/products/createProduct", map , String.class);
+                "http://product-service/api/v1/products/createProduct", map, String.class);
 
         return pName;
     }
 
     @DeleteMapping("/delete/{id}")
     public void delete(@PathVariable Long id) {
-        restTemplate.delete("http://product-service/api/v1/products/delete/"+id);
+        restTemplate.delete("http://product-service/api/v1/products/delete/" + id);
     }
 
     @PostMapping("/update/{id}")
     public String updateProduct(@ModelAttribute @Valid @RequestBody Product product, @PathVariable Long id) {
-        Product pToUpdate = restTemplate.getForObject("http://product-service/api/v1/products/"+id, Product.class);
+        Product pToUpdate = restTemplate.getForObject("http://product-service/api/v1/products/" + id, Product.class);
 
         pToUpdate.setName(product.getName());
         pToUpdate.setPrice(product.getPrice());
@@ -78,17 +91,16 @@ public class ProductController {
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
 
-        MultiValueMap<String, String > map= new LinkedMultiValueMap<>();
-        map.add("name",pName);
+        MultiValueMap<String, String> map = new LinkedMultiValueMap<>();
+        map.add("name", pName);
         map.add("price", pPrice);
         map.add("count", pCount);
 
         HttpEntity<Product> requestUpdate = new HttpEntity<>(pToUpdate, headers);
 
         ResponseEntity<String> response = restTemplate.postForEntity("http://product-service/api/v1/products/update/" + id,
-                map , String.class);
+                map, String.class);
 
         return pName;
     }
-
 }
